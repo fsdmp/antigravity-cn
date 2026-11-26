@@ -11,9 +11,9 @@
 
 ## 为什么坚持零修改（对比改 asar 的方案）
 
-社区汉化方案（asar 补丁）的路线是解包 `app.asar` → 改字符串 → 重打包。**`app.asar` 与 `default_app.asar` 均在代码签名的封签资源清单内**（已在本机 `Contents/_CodeSignature/CodeResources` 验证），改动即触发一条完整的连锁反应：
+改 asar 的汉化方案路线是解包 `app.asar` → 改字符串 → 重打包。**`app.asar` 与 `default_app.asar` 均在代码签名的封签资源清单内**（已在本机 `Contents/_CodeSignature/CodeResources` 验证），改动即触发一条完整的连锁反应：
 
-| 连锁后果 | 改 asar（社区做法） | 零修改注入（本项目） |
+| 连锁后果 | 改 asar（解包补丁） | 零修改注入（本项目） |
 |---|---|---|
 | **代码签名** | `codesign --verify` 当场失效，与官方发布物不再一致 | 完整有效（已实测） |
 | **系统拦截** | 失效签名可能被判「已损坏」——xattr 隔离、系统更新、迁移助手后可能直接拒绝启动，需手动放行 | Gatekeeper 照常接受 |
@@ -90,7 +90,11 @@ Antigravity IDE 是 VS Code fork，全部界面字符串位于应用内 `out/nls
 2. 从 stderr 读取 DevTools 地址，通过 CDP 对每个 Hub 页面执行 `Page.addScriptToEvaluateOnNewDocument` 注入翻译脚本（document-start 生效，reload 后自动续上）
 3. 脚本做「文本节点精确词典匹配」替换 + 少量动态正则，输入区/contenteditable/Monaco/消息正文容器物理免疫，词典未命中的文本一律不碰
 
-词典来源（现 5347 条）：`translations/hub-community.i18n.json` 来自社区项目 [antigravity-cn-community/Antigravity-Chinese-Localization](https://github.com/antigravity-cn-community/Antigravity-Chinese-Localization)（MIT，许可文件 `hub-community.LICENSE`）+ 本项目对 LS 托管 JS 包做字符串挖掘补充的 `hub-ext.i18n.json`（约 365 条，构建合并为 `hub.i18n.json`）。
+词典（现 5347 条）由本项目维护，分两层、均以英文原文为键：
+- `hub-community.i18n.json` — 词典底料层（5006 条，MIT 许可副本随数据保留于 `hub-community.LICENSE`）
+- `hub-ext.i18n.json` — 挖掘补充层（约 365 条）：对本管理器 LS 托管的 JS 包做字符串字面量挖掘，自动发现缺失界面串后人工翻译并入；管理器升级后同样用这条管线补新串
+
+构建脚本 `build_hub_dict.py` 将两层合并为 `hub.i18n.json`（补充层可覆盖底料层同键译文）。
 
 ## 关键设计
 
@@ -130,12 +134,12 @@ antigravity-cn/
 │   └── manager/
 │       ├── zh_hub.py        # 管理器 CDP 注入启动器/守护 (纯 stdlib)
 │       ├── inject.js        # 注入的 Hub 翻译引擎 (词典精确匹配 + 免疫规则)
-│       ├── build_hub_dict.py# 合并社区词典 + 本项目补充 → hub.i18n.json
+│       ├── build_hub_dict.py# 合并词典底料层 + 挖掘补充层 → hub.i18n.json
 │       └── integrity_check.py # 签名/asar 哈希/Gatekeeper 一键自验
 ├── translations/
 │   ├── antigravity-ext.i18n.json   # IDE 翻译记忆: 英文原文 → 中文
-│   ├── hub-community.i18n.json     # 管理器词典底料 (社区 MIT)
-│   ├── hub-community.LICENSE       # 社区词典许可文件
+│   ├── hub-community.i18n.json     # 管理器词典底料层
+│   ├── hub-community.LICENSE       # 词典底料层许可副本
 │   ├── hub-ext.i18n.json           # 管理器词典本项目补充
 │   └── hub.i18n.json               # 管理器词典构建产物
 ├── reference/               # IDE 侧官方语言包解包 (本地底料, MIT 许可副本见 zhpack-license.txt)
@@ -163,7 +167,7 @@ antigravity-cn/
 
 ### 管理器（2.35.2）
 - CDP 注入 document-start 生效，`Page.addScriptToEvaluateOnNewDocument` 对 reload/导航持续有效
-- 词典 5347 条（社区 5006 + 本项目挖掘补充 341）；界面截图验证：应用内无残留英文，仅主进程原生菜单栏保持英文
+- 词典 5347 条（底料层 5006 + 挖掘补充 341）；界面截图验证：应用内无残留英文，仅主进程原生菜单栏保持英文
 - 用户对话标题、模型名（Gemini 等）按设计保留原文
 - `--stop` / 管理器退出 → 守护自动跟随，零残留
 - `integrity_check.py` 全绿：签名、asar 哈希、Gatekeeper 与官方逐字节一致

@@ -5,7 +5,7 @@ build_hub_dict.py — 构建 Antigravity 管理器 (Hub) 界面词典
 
 合并两层来源, 产出 translations/hub.i18n.json (英文原文 → 中文):
   1. translations/hub-community.i18n.json
-     社区项目 antigravity-cn-community/Antigravity-Chinese-Localization 的词典
+     底料层来源与许可见 translations/hub-community.LICENSE
      (MIT 许可, 见 hub-community.LICENSE) — 覆盖 Hub 界面数千条
   2. translations/hub-ext.i18n.json — 本项目对新增界面串的补充 (高优先级覆盖)
 
